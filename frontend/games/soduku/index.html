@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku - Sudoku.com Style</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .game-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #235789;
+        }
+        
+        .controls-top {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .timer, .difficulty {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+        
+        .difficulty-badge {
+            background-color: #235789;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .game-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .board-container {
+            width: 100%;
+            aspect-ratio: 1/1;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 8px;
+            position: relative;
+        }
+        
+        .sudoku-board {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            gap: 1px;
+            border: 2px solid #235789;
+        }
+        
+        .cell {
+            background-color: white;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: calc(2vw + 10px);
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+        
+        .cell:nth-child(3n) {
+            border-right: 2px solid #235789;
+        }
+        
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid #235789;
+        }
+        
+        .cell.filled {
+            font-weight: 700;
+            color: #235789;
+        }
+        
+        .cell.selected {
+            background-color: #c6dbf0;
+        }
+        
+        .cell.related {
+            background-color: #e4f0fb;
+        }
+        
+        .cell.same-number {
+            background-color: #a7d0f2;
+        }
+        
+        .cell.error {
+            color: #e63946;
+        }
+        
+        .numpad {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .num-button {
+            padding: 12px 0;
+            font-size: 20px;
+            background-color: white;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .num-button:hover {
+            background-color: #f0f8ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .num-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        
+        .action-button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background-color: #235789;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            margin: 0 5px;
+            text-align: center;
+        }
+        
+        .action-button:hover {
+            background-color: #1d4b7a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .action-button.secondary {
+            background-color: #f0f2f5;
+            color: #235789;
+            border: 1px solid #235789;
+        }
+        
+        .action-button.secondary:hover {
+            background-color: #e4f0fb;
+        }
+        
+        .game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-align: center;
+            display: none;
+            z-index: 10;
+            width: 80%;
+        }
+        
+        .game-message.visible {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        .message-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #235789;
+        }
+        
+        .message-content {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #235789;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .pencil-marks {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .pencil-mark {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Responsive adjustments */
+        @media (min-width: 768px) {
+            .numpad {
+                max-width: 300px;
+                margin: 0 auto 20px;
+            }
+            
+            .cell {
+                font-size: 24px;
+            }
+            
+            .pencil-marks {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <h1 class="title">Sudoku</h1>
+        <div class="info-panel">
+            <div class="timer">
+                <span id="timer-icon">⏱️</span>
+                <span id="timer-value">00:00</span>
+            </div>
+            <div class="difficulty">
+                <span>Level:</span>
+                <span id="difficulty-label" class="difficulty-badge">Easy</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-container">
+        <div class="board-container">
+            <div id="sudoku-board" class="sudoku-board"></div>
+            <div id="loading-spinner" class="loading-spinner"></div>
+            <div id="game-message" class="game-message">
+                <h2 class="message-title">Congratulations!</h2>
+                <p class="message-content">You've successfully solved the puzzle.</p>
+                <button id="new-game-after-win" class="action-button">New Game</button>
+            </div>
+        </div>
+        
+        <div class="numpad">
+            <button class="num-button" data-value="1">1</button>
+            <button class="num-button" data-value="2">2</button>
+            <button class="num-button" data-value="3">3</button>
+            <button class="num-button" data-value="4">4</button>
+            <button class="num-button" data-value="5">5</button>
+            <button class="num-button" data-value="6">6</button>
+            <button class="num-button" data-value="7">7</button>
+            <button class="num-button" data-value="8">8</button>
+            <button class="num-button" data-value="9">9</button>
+            <button class="num-button" data-value="pencil">✏️</button>
+            <button class="num-button" data-value="clear">❌</button>
+            <button class="num-button" data-value="hint">💡</button>
+        </div>
+        
+        <div class="actions">
+            <button id="new-game" class="action-button">New Game</button>
+            <button id="check" class="action-button secondary">Check</button>
+            <button id="solve" class="action-button secondary">Solve</button>
+        </div>
+    </div>
+
+    <script>
+        class SudokuGame {
+            constructor() {
+                this.board = Array(9).fill().map(() => Array(9).fill(0));
+                this.solution = Array(9).fill().map(() => Array(9).fill(0));
+                this.initialBoard = Array(9).fill().map(() => Array(9).fill(0));
+                this.pencilMarks = Array(9).fill().map(() => Array(9).fill().map(() => new Set()));
+                
+                this.difficulty = "easy";
+                this.difficultyMapping = {
+                    "easy": { label: "Easy", emptyCells: 40 },
+                    "medium": { label: "Medium", emptyCells: 50 },
+                    "hard": { label: "Hard", emptyCells: 60 }
+                };
+                
+                this.selectedCell = null;
+                this.isPencilMode = false;
+                this.isGameOver = false;
+                this.timer = { seconds: 0, interval: null };
+                
+                // Initialize the board
+                this.createBoardDOM();
+                this.setupEventListeners();
+                this.startNewGame();
+            }
+            
+            createBoardDOM() {
+                const boardElement = document.getElementById('sudoku-board');
+                boardElement.innerHTML = '';
+                
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        
+                        // Create container for pencil marks
+                        const pencilMarksContainer = document.createElement('div');
+                        pencilMarksContainer.className = 'pencil-marks';
+                        
+                        // Create 9 positions for pencil marks
+                        for (let i = 1; i <= 9; i++) {
+                            const mark = document.createElement('div');
+                            mark.className = 'pencil-mark';
+                            mark.dataset.value = i;
+                            pencilMarksContainer.appendChild(mark);
+                        }
+                        
+                        cell.appendChild(pencilMarksContainer);
+                        boardElement.appendChild(cell);
+                    }
+                }
+            }
+            
+            setupEventListeners() {
+                // Board click event
+                document.getElementById('sudoku-board').addEventListener('click', (e) => {
+                    const cell = e.target.closest('.cell');
+                    if (cell && !this.isGameOver) {
+                        this.selectCell(cell);
+                    }
+                });
+                
+                // Number pad buttons
+                document.querySelectorAll('.num-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        if (!this.selectedCell || this.isGameOver) return;
+                        
+                        const value = button.dataset.value;
+                        
+                        if (value === 'pencil') {
+                            this.isPencilMode = !this.isPencilMode;
+                            button.style.backgroundColor = this.isPencilMode ? '#e4f0fb' : 'white';
+                            return;
+                        }
+                        
+                        if (value === 'clear') {
+                            this.clearCell();
+                            return;
+                        }
+                        
+                        if (value === 'hint') {
+                            this.giveHint();
+                            return;
+                        }
+                        
+                        if (this.isPencilMode) {
+                            this.togglePencilMark(parseInt(value));
+                        } else {
+                            this.enterNumber(parseInt(value));
+                        }
+                    });
+                });
+                
+                // Game control buttons
+                document.getElementById('new-game').addEventListener('click', () => this.startNewGame());
+                document.getElementById('check').addEventListener('click', () => this.checkSolution());
+                document.getElementById('solve').addEventListener('click', () => this.showSolution());
+                document.getElementById('new-game-after-win').addEventListener('click', () => {
+                    document.getElementById('game-message').classList.remove('visible');
+                    this.startNewGame();
+                });
+                
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    if (!this.selectedCell || this.isGameOver) return;
+                    
+                    if (e.key >= '1' && e.key <= '9') {
+                        if (this.isPencilMode) {
+                            this.togglePencilMark(parseInt(e.key));
+                        } else {
+                            this.enterNumber(parseInt(e.key));
+                        }
+                    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+                        this.clearCell();
+                    } else if (e.key === 'p' || e.key === 'P') {
+                        this.isPencilMode = !this.isPencilMode;
+                        document.querySelector('.num-button[data-value="pencil"]').style.backgroundColor = 
+                            this.isPencilMode ? '#e4f0fb' : 'white';
+                    }
+                });
+            }
+            
+            selectCell(cell) {
+                // Don't select cells that were filled initially
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                
+                if (this.initialBoard[row][col] !== 0) return;
+                
+                // Remove previous selection
+                document.querySelectorAll('.cell').forEach(c => {
+                    c.classList.remove('selected', 'related', 'same-number');
+                });
+                
+                // Select the new cell
+                cell.classList.add('selected');
+                this.selectedCell = cell;
+                
+                // Highlight related cells (same row, column, and 3x3 box)
+                this.highlightRelatedCells(row, col);
+                
+                // Highlight cells with the same number
+                const value = this.board[row][col];
+                if (value !== 0) {
+                    this.highlightSameNumbers(value);
+                }
+            }
+            
+            highlightRelatedCells(row, col) {
+                // Highlight same row and column
+                for (let i = 0; i < 9; i++) {
+                    const rowCell = document.querySelector(`.cell[data-row="${row}"][data-col="${i}"]`);
+                    const colCell = document.querySelector(`.cell[data-row="${i}"][data-col="${col}"]`);
+                    
+                    if (rowCell && i !== col) rowCell.classList.add('related');
+                    if (colCell && i !== row) colCell.classList.add('related');
+                }
+                
+                // Highlight same 3x3 box
+                const boxRow = Math.floor(row / 3) * 3;
+                const boxCol = Math.floor(col / 3) * 3;
+                
+                for (let r = boxRow; r < boxRow + 3; r++) {
+                    for (let c = boxCol; c < boxCol + 3; c++) {
+                        if (r === row && c === col) continue;
+                        
+                        const boxCell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+                        if (boxCell) boxCell.classList.add('related');
+                    }
+                }
+            }
+            
+            highlightSameNumbers(value) {
+                if (value === 0) return;
+                
+                document.querySelectorAll('.cell').forEach(cell => {
+                    const r = parseInt(cell.dataset.row);
+                    const c = parseInt(cell.dataset.col);
+                    
+                    if (this.board[r][c] === value) {
+                        cell.classList.add('same-number');
+                    }
+                });
+            }
+            
+            enterNumber(value) {
+                if (!this.selectedCell) return;
+                
+                const row = parseInt(this.selectedCell.dataset.row);
+                const col = parseInt(this.selectedCell.dataset.col);
+                
+                // Don't change initial cells
+                if (this.initialBoard[row][col] !== 0) return;
+                
+                // Update the board
+                this.board[row][col] = value;
+                
+                // Clear pencil marks for this cell
+                this.pencilMarks[row][col].clear();
+                this.updatePencilMarksUI(row, col);
+                
+                // Update UI
+                this.updateBoard();
+                
+                // Check if game is complete
+                if (this.isBoardFilled() && this.isBoardValid()) {
+                    this.handleWin();
+                }
+            }
+            
+            togglePencilMark(value) {
+                if (!this.selectedCell) return;
+                
+                const row = parseInt(this.selectedCell.dataset.row);
+                const col = parseInt(this.selectedCell.dataset.col);
+                
+                // Don't add pencil marks to cells with values or initial cells
+                if (this.board[row][col] !== 0 || this.initialBoard[row][col] !== 0) return;
+                
+                // Toggle the pencil mark
+                if (this.pencilMarks[row][col].has(value)) {
+                    this.pencilMarks[row][col].delete(value);
+                } else {
+                    this.pencilMarks[row][col].add(value);
+                }
+                
+                // Update UI
+                this.updatePencilMarksUI(row, col);
+            }
+            
+            updatePencilMarksUI(row, col) {
+                const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                if (!cell) return;
+                
+                const pencilMarks = this.pencilMarks[row][col];
+                const pencilMarksContainer = cell.querySelector('.pencil-marks');
+                
+                // Clear all marks first
+                pencilMarksContainer.querySelectorAll('.pencil-mark').forEach(mark => {
+                    mark.textContent = '';
+                });
+                
+                // Add the active marks
+                pencilMarks.forEach(value => {
+                    const mark = pencilMarksContainer.querySelector(`.pencil-mark[data-value="${value}"]`);
+                    if (mark) {
+                        mark.textContent = value;
+                    }
+                });
+            }
+            
+            clearCell() {
+                if (!this.selectedCell) return;
+                
+                const row = parseInt(this.selectedCell.dataset.row);
+                const col = parseInt(this.selectedCell.dataset.col);
+                
+                // Don't clear initial cells
+                if (this.initialBoard[row][col] !== 0) return;
+                
+                // Clear the value and pencil marks
+                this.board[row][col] = 0;
+                this.pencilMarks[row][col].clear();
+                
+                // Update UI
+                this.updateBoard();
+                this.updatePencilMarksUI(row, col);
+            }
+            
+            giveHint() {
+                if (!this.selectedCell) return;
+                
+                const row = parseInt(this.selectedCell.dataset.row);
+                const col = parseInt(this.selectedCell.dataset.col);
+                
+                // Don't give hints for initial cells or filled cells
+                if (this.initialBoard[row][col] !== 0 || this.board[row][col] !== 0) return;
+                
+                // Show the correct value from the solution
+                this.board[row][col] = this.solution[row][col];
+                
+                // Clear pencil marks
+                this.pencilMarks[row][col].clear();
+                this.updatePencilMarksUI(row, col);
+                
+                // Update UI
+                this.updateBoard();
+                
+                // Check if game is complete
+                if (this.isBoardFilled() && this.isBoardValid()) {
+                    this.handleWin();
+                }
+            }
+            
+            startNewGame() {
+                // Reset game state
+                this.isGameOver = false;
+                this.resetTimer();
+                this.startTimer();
+                
+                // Show loading spinner
+                document.getElementById('loading-spinner').style.display = 'block';
+                
+                // Use setTimeout to allow the UI to update before the calculations begin
+                setTimeout(() => {
+                    // Generate a new solved puzzle
+                    this.generateSolution();
+                    
+                    // Create a puzzle with holes based on difficulty
+                    this.createPuzzle();
+                    
+                    // Save initial board for reference
+                    for (let i = 0; i < 9; i++) {
+                        this.initialBoard[i] = [...this.board[i]];
+                    }
+                    
+                    // Reset pencil marks
+                    this.pencilMarks = Array(9).fill().map(() => Array(9).fill().map(() => new Set()));
+                    
+                    // Update UI
+                    this.updateBoard();
+                    
+                    // Update difficulty label
+                    document.getElementById('difficulty-label').textContent = 
+                        this.difficultyMapping[this.difficulty].label;
+                    
+                    // Hide loading spinner
+                    document.getElementById('loading-spinner').style.display = 'none';
+                }, 100);
+            }
+            
+            generateSolution() {
+                // Initialize empty board
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        this.solution[i][j] = 0;
+                    }
+                }
+                
+                // Fill diagonal boxes first (these can be filled independently)
+                for (let box = 0; box < 9; box += 3) {
+                    this.fillBox(box, box);
+                }
+                
+                // Solve the rest of the board
+                this.solveSudoku(this.solution);
+                
+                // Copy solution to the playing board
+                for (let i = 0; i < 9; i++) {
+                    this.board[i] = [...this.solution[i]];
+                }
+            }
+            
+            fillBox(row, col) {
+                const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                this.shuffleArray(nums);
+                
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        this.solution[row + i][col + j] = nums.pop();
+                    }
+                }
+            }
+            
+            shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+            
+            solveSudoku(board) {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        if (board[row][col] === 0) {
+                            const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                            this.shuffleArray(nums);
+                            
+                            for (const num of nums) {
+                                if (this.isValidMove(board, row, col, num)) {
+                                    board[row][col] = num;
+                                    
+                                    if (this.solveSudoku(board)) {
+                                        return true;
+                                    }
+                                    
+                                    board[row][col] = 0; // Backtrack
+                                }
+                            }
+                            return false; // Trigger backtracking
+                        }
+                    }
+                }
+                return true; // Board is filled
+            }
+            
+            isValidMove(board, row, col, num) {
+                // Check row
+                for (let i = 0; i < 9; i++) {
+                    if (board[row][i] === num) return false;
+                }
+                
+                // Check column
+                for (let i = 0; i < 9; i++) {
+                    if (board[i][col] === num) return false;
+                }
+                
+                // Check 3x3 box
+                const boxRow = Math.floor(row / 3) * 3;
+                const boxCol = Math.floor(col / 3) * 3;
+                
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        if (board[boxRow + i][boxCol + j] === num) return false;
+                    }
+                }
+                
+                return true;
+            }
+            
+            createPuzzle() {
+                // Determine how many cells to remove based on difficulty
+                const emptyCells = this.difficultyMapping[this.difficulty].emptyCells;
+                
+                // Create a list of all positions
+                const positions = [];
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        positions.push([i, j]);
+                    }
+                }
+                
+                // Shuffle the positions
+                this.shuffleArray(positions);
+                
+                // Remove numbers from the specified positions
+                for (let i = 0; i < emptyCells; i++) {
+                    const [row, col] = positions[i];
+                    this.board[row][col] = 0;
+                }
+            }
+            
+            updateBoard() {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                        if (!cell) continue;
+                        
+                        const value = this.board[row][col];
+                        
+                        // Clear existing content but keep pencil marks container
+                        const pencilMarksContainer = cell.querySelector('.pencil-marks');
+                        
+                        // Remove any direct text content in the cell (not in pencil marks)
+                        Array.from(cell.childNodes).forEach(node => {
+                            if (node.nodeType === Node.TEXT_NODE) {
+                                cell.removeChild(node);
+                            }
+                        });
+                        
+                        // Add new value if not zero
+                        if (value !== 0) {
+                            // Hide pencil marks when cell has a value
+                            pencilMarksContainer.style.display = 'none';
+                            
+                            // Add the value as text content
+                            const textNode = document.createTextNode(value);
+                            cell.insertBefore(textNode, pencilMarksContainer);
+                            
+                            // Set filled class if it's an initial value
+                            if (this.initialBoard[row][col] !== 0) {
+                                cell.classList.add('filled');
+                            } else {
+                                cell.classList.remove('filled');
+                            }
+                            
+                            // Check if value is valid
+                            const isValid = this.isCellValid(row, col, value);
+                            cell.classList.toggle('error', !isValid);
+                        } else {
+                            // Show pencil marks when cell is empty
+                            pencilMarksContainer.style.display = 'grid';
+                            cell.classList.remove('error', 'filled');
+                        }
+                    }
+                }
+            }
+            
+            isCellValid(row, col, value) {
+                // Temporarily remove the value from the board
+                const currentValue = this.board[row][col];
+                this.board[row][col] = 0;
+                
+                // Check if placing the value here would be valid
+                const isValid = this.isValidMove(this.board, row, col, value);
+                
+                                // Restore the value
+                this.board[row][col] = currentValue;
+                
+                return isValid;
+            }
+
+            checkSolution() {
+                let errors = 0;
+                let emptyCount = 0;
+
+                // Loop through the entire board to check for errors and empty cells
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const value = this.board[row][col];
+                        if (value === 0) {
+                            emptyCount++; // Count empty cells
+                        } else if (!this.isCellValid(row, col, value)) {
+                            errors++; // Count errors in the solution
+                        }
+                    }
+                }
+
+                // If no errors and no empty cells, the player wins
+                if (errors === 0 && emptyCount === 0) {
+                    this.handleWin();
+                } else {
+                    alert(`${errors} errors found.`);
+                }
+            }
+
+            handleWin() {
+                this.isGameOver = true;
+                this.stopTimer();
+                document.getElementById('game-message').textContent = 'Congratulations, you win!';
+                document.getElementById('game-message').classList.add('visible');
+            }
+
+            stopTimer() {
+                clearInterval(this.timer.interval);
+                this.timer.interval = null;
+            }
+
+            startTimer() {
+                this.timer.interval = setInterval(() => {
+                    this.timer.seconds++;
+                    document.getElementById('timer').textContent = this.formatTime(this.timer.seconds);
+                }, 1000);
+            }
+
+            resetTimer() {
+                this.timer.seconds = 0;
+                document.getElementById('timer').textContent = '00:00';
+            }
+
+            formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secondsRemaining = seconds % 60;
+                return `${String(minutes).padStart(2, '0')}:${String(secondsRemaining).padStart(2, '0')}`;
+            }
+
+            showSolution() {
+                // Reveal the solution
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        if (this.board[row][col] === 0) {
+                            this.board[row][col] = this.solution[row][col];
+                        }
+                    }
+                }
+                this.updateBoard();
+                this.handleWin();
+            }
+
+            isBoardFilled() {
+                // Check if all cells are filled
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        if (this.board[row][col] === 0) {
+                            return false; // Return false if any cell is empty
+                        }
+                    }
+                }
+                return true; // Return true if all cells are filled
+            }
+
+            isBoardValid() {
+                // Check if the current board is valid (no conflicts)
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const value = this.board[row][col];
+                        if (value !== 0 && !this.isCellValid(row, col, value)) {
+                            return false; // Return false if any cell is invalid
+                        }
+                    }
+                }
+                return true; // Return true if the board is valid
+            }
+        }
+
+        // Initialize the game when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new SudokuGame();
+        });
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Game</title>
+    <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+    <header>
+        <h1>WORDLE</h1>
+    </header>
+
+    <div class="game-container">
+        <div class="settings">
+            <div class="difficulty-selector">
+                <button class="difficulty-btn" data-difficulty="easy">Easy</button>
+                <button class="difficulty-btn active" data-difficulty="medium">Medium</button>
+                <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="streak">0</div>
+                    <div class="stat-label">Streak</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="high-score">0</div>
+                    <div class="stat-label">Best</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="keyboard">
+            <div class="keyboard-row">
+                <div class="key key-letter" data-key="q">q</div>
+                <div class="key key-letter" data-key="w">w</div>
+                <div class="key key-letter" data-key="e">e</div>
+                <div class="key key-letter" data-key="r">r</div>
+                <div class="key key-letter" data-key="t">t</div>
+                <div class="key key-letter" data-key="y">y</div>
+                <div class="key key-letter" data-key="u">u</div>
+                <div class="key key-letter" data-key="i">i</div>
+                <div class="key key-letter" data-key="o">o</div>
+                <div class="key key-letter" data-key="p">p</div>
+            </div>
+            <div class="keyboard-row">
+                <div class="key key-letter" data-key="a">a</div>
+                <div class="key key-letter" data-key="s">s</div>
+                <div class="key key-letter" data-key="d">d</div>
+                <div class="key key-letter" data-key="f">f</div>
+                <div class="key key-letter" data-key="g">g</div>
+                <div class="key key-letter" data-key="h">h</div>
+                <div class="key key-letter" data-key="j">j</div>
+                <div class="key key-letter" data-key="k">k</div>
+                <div class="key key-letter" data-key="l">l</div>
+            </div>
+            <div class="keyboard-row">
+                <div class="key key-wide" data-key="enter">enter</div>
+                <div class="key key-letter" data-key="z">z</div>
+                <div class="key key-letter" data-key="x">x</div>
+                <div class="key key-letter" data-key="c">c</div>
+                <div class="key key-letter" data-key="v">v</div>
+                <div class="key key-letter" data-key="b">b</div>
+                <div class="key key-letter" data-key="n">n</div>
+                <div class="key key-letter" data-key="m">m</div>
+                <div class="key key-wide" data-key="backspace">⌫</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="message" id="message"></div>
+
+    <div class="modal" id="game-over-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-title">Game Over</div>
+            <div class="word-reveal" id="word-reveal"></div>
+            <div class="modal-message" id="modal-message"></div>
+            <button class="modal-btn" id="play-again-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

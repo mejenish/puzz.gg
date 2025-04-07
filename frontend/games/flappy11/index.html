@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Play Flappy Plane - September Edition! A fun, endless arcade game where you pilot a plane through buildings. Press W or ↑ to fly, avoid crashing, and beat your high score!" />
+  <meta name="keywords" content="flappy plane, flying game, flappy bird alternative, endless runner game, browser game, september edition" />
+  <meta name="author" content="Flappy Games Inc." />
+  <title>Flappy Plane - September Edition</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #87ceeb;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #gameCanvas {
+      display: block;
+      background: linear-gradient(#87ceeb, #d0f4f7);
+      border-bottom: 6px solid green;
+      max-height: 100vh;
+      max-width: 100%;
+    }
+    #instructions {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.85);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      z-index: 2;
+      transition: opacity 0.5s ease;
+    }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="instructions">Press <strong>W</strong> or <strong>↑</strong> to Fly | <strong>R</strong> to Restart</div>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const instructionsElement = document.getElementById("instructions");
+
+    // Create a placeholder plane image instead of loading from URL
+    const planeImg = new Image();
+    planeImg.src = "planes.png";
+
+    let plane = {
+      x: 80,
+      y: 250,
+      width: 50,
+      height: 50,
+      velocity: 0,
+      gravity: 0.5,
+      lift: -8,
+      rotation: 0
+    };
+
+    let buildings = [];
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem("flappyPlaneHigh")) || 0;
+    let gameOver = false;
+    let started = false;
+    let frame = 0;
+    let lastPressTime = 0;
+    
+    // Explosion animation properties
+    let explosion = {
+      active: false,
+      x: 0,
+      y: 0,
+      radius: 0,
+      maxRadius: 60,
+      step: 0,
+      maxSteps: 15,
+      particles: []
+    };
+
+    function drawPlane() {
+      if (gameOver && explosion.active) return; // Don't draw plane if explosion is active
+      
+      ctx.save();
+      ctx.translate(plane.x + plane.width / 2, plane.y + plane.height / 2);
+      ctx.rotate(plane.rotation);
+      ctx.drawImage(planeImg, -plane.width / 2, -plane.height / 2, plane.width, plane.height);
+      ctx.restore();
+    }
+
+    function drawExplosion() {
+      if (!explosion.active) return;
+
+      // Draw main explosion circle
+      ctx.fillStyle = `rgba(255, ${255 - explosion.step * 15}, 0, ${1 - explosion.step / explosion.maxSteps})`;
+      ctx.beginPath();
+      ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw explosion particles
+      explosion.particles.forEach((particle, i) => {
+        ctx.fillStyle = `rgba(255, ${Math.random() * 200}, 0, ${1 - explosion.step / explosion.maxSteps})`;
+        ctx.beginPath();
+        ctx.arc(
+          particle.x + particle.vx * explosion.step,
+          particle.y + particle.vy * explosion.step,
+          particle.radius * (1 - explosion.step / explosion.maxSteps),
+          0, Math.PI * 2
+        );
+        ctx.fill();
+      });
+      
+      // Update explosion
+      if (explosion.step < explosion.maxSteps) {
+        explosion.radius = explosion.maxRadius * (explosion.step / explosion.maxSteps);
+        explosion.step++;
+      } else {
+        explosion.active = false;
+      }
+    }
+
+    function createExplosion(x, y) {
+      // Reset explosion properties
+      explosion.active = true;
+      explosion.x = x;
+      explosion.y = y;
+      explosion.radius = 1;
+      explosion.step = 0;
+      explosion.particles = [];
+      
+      // Create explosion particles
+      for (let i = 0; i < 20; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 3;
+        explosion.particles.push({
+          x: x,
+          y: y,
+          radius: 2 + Math.random() * 6,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed
+        });
+      }
+      
+      // Play explosion sound
+      try {
+        const oscillator = new (AudioContext || window.webkitAudioContext)().createOscillator();
+        const gainNode = oscillator.context.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(oscillator.context.destination);
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.value = 100;
+        gainNode.gain.setValueAtTime(1, oscillator.context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, oscillator.context.currentTime + 0.5);
+        oscillator.start();
+        oscillator.stop(oscillator.context.currentTime + 0.5);
+      } catch (e) {
+        // Silently fail if audio context is not available
+      }
+    }
+
+    function drawBuildings() {
+      ctx.fillStyle = "#333";
+      buildings.forEach(b => {
+        ctx.fillRect(b.x, 0, b.width, b.top);
+        ctx.fillRect(b.x, b.bottom, b.width, canvas.height - b.bottom);
+        
+        // Add windows to buildings
+        ctx.fillStyle = "#ffff99";
+        for (let y = 5; y < b.top; y += 15) {
+          for (let x = b.x + 5; x < b.x + b.width - 5; x += 15) {
+            if (Math.random() > 0.3) {
+              ctx.fillRect(x, y, 10, 10);
+            }
+          }
+        }
+        
+        for (let y = b.bottom + 5; y < canvas.height - 5; y += 15) {
+          for (let x = b.x + 5; x < b.x + b.width - 5; x += 15) {
+            if (Math.random() > 0.3) {
+              ctx.fillRect(x, y, 10, 10);
+            }
+          }
+        }
+        ctx.fillStyle = "#333";
+      });
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "#000";
+      ctx.font = "18px Arial";
+      ctx.textAlign = "left";
+      const displayScore = Math.floor(score/10);
+      ctx.fillText(`Score: ${displayScore}`, 10, 25);
+      ctx.fillText(`High Score: ${Math.floor(highScore/10)}`, 10, 50);
+    }
+
+    function resetGame() {
+      plane.y = 250;
+      plane.velocity = 0;
+      plane.rotation = 0;
+      buildings = [];
+      score = 0;
+      gameOver = false;
+      started = false;
+      frame = 0;
+      explosion.active = false;
+      
+      // Show instructions again when game is reset
+      instructionsElement.classList.remove("hidden");
+    }
+
+    function triggerGameOver() {
+      if (!gameOver) {
+        gameOver = true;
+        
+        // Create explosion at plane's center
+        createExplosion(
+          plane.x + plane.width / 2,
+          plane.y + plane.height / 2
+        );
+        
+        // Update high score immediately when game ends
+        const finalScore = Math.floor(score / 10) * 10; // Make sure to use same calculation
+        if (finalScore > highScore) {
+          highScore = finalScore;
+          localStorage.setItem("flappyPlaneHigh", highScore);
+        }
+      }
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      if (started) {
+        plane.velocity += plane.gravity;
+        plane.y += plane.velocity;
+        plane.rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, plane.velocity / 10));
+        
+        // Handle top border collision - bounce instead of game over
+        if (plane.y < 0) {
+          plane.y = 0;
+          plane.velocity = 1; // Gentle bounce down
+        }
+
+        if (frame % 90 === 0) {
+          const gap = 150;
+          const top = Math.floor(Math.random() * (canvas.height / 2 - 100)) + 50;
+          buildings.push({
+            x: canvas.width,
+            width: 60,
+            top,
+            bottom: top + gap,
+            counted: false
+          });
+        }
+
+        buildings.forEach(b => {
+          b.x -= 2;
+          
+          // Add score when plane passes building
+          if (!b.counted && plane.x > b.x + b.width) {
+            b.counted = true;
+            score += 10;
+          }
+        });
+        
+        buildings = buildings.filter(b => b.x + b.width > 0);
+
+        // Check building collisions
+        for (let i = 0; i < buildings.length; i++) {
+          const b = buildings[i];
+          const hitX = plane.x < b.x + b.width && plane.x + plane.width > b.x;
+          const hitY = plane.y < b.top || plane.y + plane.height > b.bottom;
+          if (hitX && hitY) {
+            triggerGameOver();
+            break;
+          }
+        }
+
+        // Check bottom collision
+        if (plane.y + plane.height >= canvas.height) {
+          triggerGameOver();
+        }
+
+        if (!gameOver) {
+          score++;
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw background clouds
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      let time = Date.now() * 0.0002;
+      for (let i = 0; i < 5; i++) {
+        let x = ((time + i * 0.3) % 1) * canvas.width;
+        let y = 80 + i * 60;
+        let size = 30 + i * 10;
+        drawCloud(x, y, size);
+      }
+
+      drawBuildings();
+      drawPlane();
+      drawExplosion();
+      drawScore();
+
+      if (!started) {
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fillRect(0, canvas.height / 2 - 30, canvas.width, 60);
+        ctx.fillStyle = "#fff";
+        ctx.font = "20px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Press W or ↑ to Start", canvas.width / 2, canvas.height / 2);
+      }
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0, canvas.height / 2 - 40, canvas.width, 80);
+        ctx.fillStyle = "#fff";
+        ctx.font = "26px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Game Over", canvas.width / 2, canvas.height / 2 - 10);
+        ctx.font = "18px Arial";
+
+        ctx.fillText("Press R to Restart", canvas.width / 2, canvas.height / 2 + 20);
+      }
+    }
+    
+    function drawCloud(x, y, size) {
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.arc(x + size * 0.8, y - size * 0.3, size * 0.8, 0, Math.PI * 2);
+      ctx.arc(x + size * 1.4, y, size * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function startGame() {
+      started = true;
+      instructionsElement.classList.add("hidden");
+    }
+
+    function loop() {
+      update();
+      draw();
+      frame++;
+      requestAnimationFrame(loop);
+    }
+
+    // Fix keyboard controls
+    document.addEventListener("keydown", e => {
+      // Prevent double-trigger by checking time since last press
+      const now = Date.now();
+      if (now - lastPressTime < 100) return;
+      lastPressTime = now;
+      
+      if ((e.key === "w" || e.key === "ArrowUp") && !gameOver) {
+        plane.velocity = plane.lift;
+        plane.rotation = -0.3;
+        if (!started) {
+          startGame();
+        }
+      }
+
+      if (e.key === "r" && gameOver) {
+        resetGame();
+      }
+    });
+
+    // Add touch controls for mobile
+    canvas.addEventListener("touchstart", e => {
+      e.preventDefault();
+      if (!gameOver) {
+        plane.velocity = plane.lift;
+        plane.rotation = -0.3;
+        if (!started) {
+          startGame();
+        }
+      } else {
+        resetGame();
+      }
+    });
+
+    // Start the game loop immediately
+    loop();
+  </script>
+</body>
+</html>
